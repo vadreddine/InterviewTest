@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exchange Rates</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* Body Styling */
+        body {
+            background-color: #f8f9fa;
+            color: #333;
+            padding: 20px;
+        }
+
+        /* Navbar Styling */
+        .navbar {
+            background-color: #dc3545; /* Red */
+        }
+
+        /* Header Styling */
+        .header {
+            padding: 10px;
+            text-align: center;
+        }
+
+        /* Chart Container Styling */
+        .chart-container {
+            width: 100%;
+            max-width: 800px;
+            height: 400px;
+            margin: 20px auto;
+        }
+
+        /* Table Styling */
+        table {
+            margin: 20px auto;
+            max-width: 800px;
+        }
+
+        .table th {
+            background-color: #dc3545; /* Red */
+            color: white;
+        }
+
+        .table td {
+            background-color: #fff;
+        }
+
+        .table-striped tbody tr:nth-of-type(odd) {
+            background-color: #f2f2f2;
+        }
+
+        .table-striped tbody tr:hover {
+            background-color: #ffe5e5; /* Light Red */
+        }
+
+        /* Footer Styling */
+        footer {
+            margin-top: 20px;
+            text-align: center;
+            font-size: 14px;
+            color: #6c757d; /* Bootstrap's secondary text color */
+        }
+
+        /* Loader Styles */
+        .loader-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 200px;
+        }
+
+        .loader {
+            border: 8px solid #f3f3f3; /* Light Gray */
+            border-top: 8px solid #dc3545; /* Red */
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Toggle Button Styling */
+        .toggle-buttons {
+            margin: 20px auto;
+            max-width: 800px;
+            text-align: center;
+        }
+
+        .toggle-buttons .btn {
+            margin: 0 10px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">
+                Exchange Rates Tracker
+            </a>
+            <div class="collapse navbar-collapse">
+                <span class="navbar-text">
+                    Interview Test
+                </span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Container -->
+    <div class="container text-center">
+        <!-- Header Section -->
+        <div class="header">
+            <h1>Latest Exchange Rates</h1>
+        </div>
+        
+        <!-- Toggle Buttons -->
+        <div class="toggle-buttons">
+            <button id="showTableBtn" class="btn btn-primary">Show Table</button>
+            <button id="showChartBtn" class="btn btn-secondary">Show Chart</button>
+        </div>
+        
+        <!-- Loader -->
+        <div id="loader" class="loader-container">
+            <div class="loader"></div>
+        </div>
+
+        <!-- Exchange Rates Table (Visible Initially) -->
+        <table class="table table-striped table-bordered" id="rateTable" style="display: none;">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>USD</th>
+                    <th>EUR</th>
+                </tr>
+            </thead>
+            <tbody id="rateTableBody">
+                <!-- Data will be injected here via JavaScript -->
+            </tbody>
+        </table>
+
+        <!-- Chart Container (Hidden Initially) -->
+        <div class="chart-container" id="chartContainer" style="display: none;">
+            <canvas id="exchangeRateChart"></canvas>
+        </div>
+        
+        <!-- Footer -->
+        <footer>
+            <p>&copy; 2024 Designed for an interview test by LOUAZANI BADREDDINE.</p>
+        </footer>
+    </div>
+
+    <!-- JavaScript Section -->
+    <script>
+        /**
+         * Fetch exchange rates data from the API.
+         * @returns {Promise<Array>} Array of exchange rate objects.
+         */
+        async function loadExchangeRates() {
+            try {
+                const response = await fetch('/api/rates');
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                const data = await response.json();
+                return data;
+            } catch (error) {
+                console.error('Failed to fetch exchange rates:', error);
+                alert('Failed to load exchange rates. Please try again later.');
+                return [];
+            }
+        }
+
+        /**
+         * Display exchange rates in the table.
+         * @param {Array} rates - Array of exchange rate objects.
+         * @returns {Array} Grouped exchange rates by date.
+         */
+        function displayRates(rates) {
+            const tableBody = document.getElementById('rateTableBody');
+            tableBody.innerHTML = ''; // Clear existing content
+
+            // Group rates by date to consolidate USD and EUR on a single row
+            const groupedRates = {};
+            rates.forEach(rate => {
+                if (!groupedRates[rate.date]) {
+                    groupedRates[rate.date] = { date: rate.date, USD: null, EUR: null };
+                }
+                if (rate.currency === 'USD') {
+                    groupedRates[rate.date].USD = rate.rate;
+                } else if (rate.currency === 'EUR') {
+                    groupedRates[rate.date].EUR = rate.rate;
+                }
+            });
+
+            // Create table rows with grouped rates
+            Object.values(groupedRates).forEach(rate => {
+                const row = document.createElement('tr');
+
+                const dateCell = document.createElement('td');
+                dateCell.textContent = rate.date;
+                row.appendChild(dateCell);
+
+                const usdCell = document.createElement('td');
+                usdCell.textContent = rate.USD !== null ? rate.USD : 'N/A';
+                row.appendChild(usdCell);
+
+                const eurCell = document.createElement('td');
+                eurCell.textContent = rate.EUR !== null ? rate.EUR : 'N/A';
+                row.appendChild(eurCell);
+
+                tableBody.appendChild(row);
+            });
+
+            return Object.values(groupedRates);
+        }
+
+        /**
+         * Create and render the exchange rates chart using Chart.js.
+         * @param {Array} rates - Array of grouped exchange rate objects.
+         */
+        function createChart(rates) {
+            const ctx = document.getElementById('exchangeRateChart').getContext('2d');
+            const labels = rates.map(rate => rate.date); // Dates
+            const usdData = rates.map(rate => rate.USD); // USD Rates
+            const eurData = rates.map(rate => rate.EUR); // EUR Rates
+
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'USD Rate',
+                            data: usdData,
+                            borderColor: 'rgba(75, 192, 192, 1)',
+                            borderWidth: 2,
+                            fill: false,
+                        },
+                        {
+                            label: 'EUR Rate',
+                            data: eurData,
+                            borderColor: 'rgba(255, 99, 132, 1)',
+                            borderWidth: 2,
+                            fill: false,
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top',
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                        },
+                    },
+                    interaction: {
+                        mode: 'nearest',
+                        axis: 'x',
+                        intersect: false
+                    },
+                    scales: {
+                        x: {
+                            display: true,
+                            title: {
+                                display: true,
+                                text: 'Date',
+                            }
+                        },
+                        y: {
+                            display: true,
+                            title: {
+                                display: true,
+                                text: 'Rate',
+                            },
+                            beginAtZero: false
+                        }
+                    }
+                }
+            });
+        }
+
+        /**
+         * Initialize the application by loading data and setting up the UI.
+         */
+        async function init() {
+            // Get references to UI elements
+            const loader = document.getElementById('loader');
+            const chartContainer = document.getElementById('chartContainer');
+            const rateTable = document.getElementById('rateTable');
+            const showChartBtn = document.getElementById('showChartBtn');
+            const showTableBtn = document.getElementById('showTableBtn');
+
+            // Show loader and hide other elements initially
+            loader.style.display = 'flex';
+            chartContainer.style.display = 'none';
+            rateTable.style.display = 'none';
+
+            // Load exchange rates data
+            const rates = await loadExchangeRates();
+
+            if (rates.length > 0) {
+                // Display rates in the table
+                const groupedRates = displayRates(rates);
+
+                // Create the chart
+                createChart(groupedRates);
+
+                // Hide loader and show table by default
+                loader.style.display = 'none';
+                chartContainer.style.display = 'none';
+                rateTable.style.display = 'table';
+
+                // Update button styles to reflect active view
+                showTableBtn.classList.replace('btn-secondary', 'btn-primary');
+                showChartBtn.classList.replace('btn-primary', 'btn-secondary');
+
+                // Event Listener to Show Chart
+                showChartBtn.addEventListener('click', () => {
+                    chartContainer.style.display = 'block';
+                    rateTable.style.display = 'none';
+                    showChartBtn.classList.replace('btn-secondary', 'btn-primary');
+                    showTableBtn.classList.replace('btn-primary', 'btn-secondary');
+                });
+
+                // Event Listener to Show Table
+                showTableBtn.addEventListener('click', () => {
+                    chartContainer.style.display = 'none';
+                    rateTable.style.display = 'table';
+                    showTableBtn.classList.replace('btn-secondary', 'btn-primary');
+                    showChartBtn.classList.replace('btn-primary', 'btn-secondary');
+                });
+            } else {
+                // In case of failure, hide loader and optionally show an error message
+                loader.style.display = 'none';
+            }
+        }
+
+        // Start the initialization when the DOM is fully loaded
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
