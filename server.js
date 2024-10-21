@@ -11,7 +11,7 @@ const agent = new https.Agent({
 });
 
 const app = express();
-const PORT = 3002;
+const PORT = process.env.PORT || 3002;  // Use Render's provided port or default to 3002
 
 /**
  * Fetches exchange rates from the Bank of Algeria website.
