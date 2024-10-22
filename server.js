@@ -4,6 +4,7 @@ const cheerio = require('cheerio');
 const db = require('./database');
 const path = require('path');
 const https = require('https');
+const cron = require('node-cron');
 
 // Configure an HTTPS agent to ignore SSL errors
 const agent = new https.Agent({  
@@ -143,18 +144,31 @@ app.get('/api/rates', async (req, res) => {
                 }
             }
         } else {
-            console.log('No rates found.');
+            console.log('No new rates found on the website.');
         }
 
+        // Fetching all rates from the database in case the website fails or returns no rates
         console.log('Fetching all rates from the database...');
         const allRates = await db.getExchangeRates();
         console.log('Successfully fetched all rates from the database.');
         res.json(allRates);
+
     } catch (error) {
         console.error('Error processing exchange rates:', error);
-        res.status(500).json({ error: error.message });
+
+        // Fallback: Fetching rates from the database if an error occurs
+        try {
+            console.log('Fetching rates from the database as fallback...');
+            const fallbackRates = await db.getExchangeRates();
+            console.log('Successfully fetched fallback rates from the database.');
+            res.json(fallbackRates);
+        } catch (dbError) {
+            console.error('Error fetching rates from the database:', dbError);
+            res.status(500).json({ error: 'Failed to fetch rates from both the website and the database.' });
+        }
     }
 });
+
 
 /**
  * 404 Error Handler for undefined routes.
@@ -163,7 +177,49 @@ app.use((req, res) => {
     res.status(404).send('Page not found');
 });
 
+
+/**
+ * Cron job with random interval between 25 and 35 minutes.
+ */
+function scheduleRandomCronJob() {
+  const randomMinutes = Math.floor(Math.random() * (35 - 25 + 1)) + 25;
+  console.log(`Next exchange rates update scheduled in ${randomMinutes} minutes.`);
+
+  cron.schedule(`*/${randomMinutes} * * * *`, async () => {
+    console.log(`Executing scheduled job after ${randomMinutes} minutes.`);
+    await fetchExchangeRatesAndUpdateDB();
+    scheduleRandomCronJob();  // Schedule the next job with a new random interval
+  }, {
+    scheduled: true
+  });
+}
+
+/**
+ * Fetch exchange rates and update the database.
+ */
+async function fetchExchangeRatesAndUpdateDB() {
+  const rates = await fetchExchangeRates();
+
+  if (rates.length > 0) {
+    for (const rate of rates) {
+      const usdExists = await doesRateExist(rate.date, 'USD');
+      const eurExists = await doesRateExist(rate.date, 'EUR');
+
+      if (!usdExists) {
+        await db.saveExchangeRate('USD', rate.USD, rate.date);
+      }
+      if (!eurExists) {
+        await db.saveExchangeRate('EUR', rate.EUR, rate.date);
+      }
+    }
+    console.log('Database updated successfully.');
+  } else {
+    console.log('No new rates to update.');
+  }
+}
+
 // Start the Express server
 app.listen(PORT, () => {
     console.log(`Backend running at http://localhost:${PORT}`);
+    scheduleRandomCronJob();
 });

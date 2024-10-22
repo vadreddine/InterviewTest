@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Exchange Rates</title>
     <!-- Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="assets/bootstrap.min.css" rel="stylesheet">
     <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="assets/chart.js"></script>
     <style>
         /* Body Styling */
         body {
@@ -170,6 +170,7 @@
                     throw new Error('Network response was not ok');
                 }
                 const data = await response.json();
+                console.log('Received rates data:', data); 
                 return data;
             } catch (error) {
                 console.error('Failed to fetch exchange rates:', error);
@@ -184,6 +185,7 @@
          * @returns {Array} Grouped exchange rates by date.
          */
         function displayRates(rates) {
+            console.log('Displaying rates:', rates); 
             const tableBody = document.getElementById('rateTableBody');
             tableBody.innerHTML = ''; // Clear existing content
 
